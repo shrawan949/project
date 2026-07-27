@@ -40,7 +40,7 @@ pipeline{
         stage('Deploy to kubernetes'){
             steps{
                 sh """
-                kubectl set image deployment/project\ app=${IMAGE_NAME}:${IMAGE_TAG} -n practice"""
+                kubectl set image deployment/project app=${IMAGE_NAME}:${IMAGE_TAG} -n practice"""
             }
         }
     }
