@@ -1,0 +1,22 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-frontend
+  namespace: notes-app
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: notes-frontend
+  template:
+    metadata:
+      labels:
+        app: notes-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: shrawanambarte0101/notes-frontend:1
+          ports:
+            - containerPort: 80
+
