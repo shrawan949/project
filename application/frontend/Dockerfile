@@ -1,4 +1,3 @@
-
 FROM node:22-alpine AS build
 
 WORKDIR /app
@@ -8,7 +7,6 @@ RUN npm ci
 
 COPY . .
 
-# Vite environment variables must be set before building.
 ARG VITE_API_URL
 ARG VITE_SOCKET_URL
 
