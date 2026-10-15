@@ -124,7 +124,7 @@ pipeline {
             steps {
                 withCredentials([
                     file(
-                        credentialsId: 'kubeconfig-admin.yaml',
+                        credentialsId: 'kubeconfig-admin',
                         variable: 'KUBECONFIG_FILE'
                     )
                 ]) {
