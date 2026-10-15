@@ -130,7 +130,7 @@ pipeline {
                 ]) {
                     sh '''
                         set -eu
-                        export KUBECONFIG="$KUBECONFIG_FILE"
+                        export KUBECONFIG="$KUBECONFIG_FILE_NEW"
 
                         echo "Checking Kubernetes cluster..."
                         kubectl get nodes

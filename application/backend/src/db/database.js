@@ -3,11 +3,20 @@ import { DB_NAME } from "../constants.js";
 
 async function ConnectionDb() {
     try {
-        await mongoose.connect(`${process.env.MONOGO_URL}/${DB_NAME}`)
-        console.log('Connect database succesfully')        
+        const mongoUrl = process.env.MONGO_URI;
+
+        if (!mongoUrl) {
+            throw new Error("MONGO_URI is not set");
+        }
+
+        const connectionUrl = `${mongoUrl.replace(/\/+$/, "")}/${DB_NAME}`;
+
+        await mongoose.connect(connectionUrl);
+        console.log("Connected to database successfully");
     } catch (error) {
-        console.log('mongoose not connect to db','error:',error)
-    }   
+        console.error("MongoDB connection failed:", error.message);
+        throw error;
+    }
 }
 
-export default ConnectionDb
+export default ConnectionDb;
