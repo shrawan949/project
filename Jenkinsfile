@@ -135,10 +135,6 @@ pipeline {
                         echo "Checking Kubernetes cluster..."
                         kubectl get nodes
 
-                        echo "Applying Kubernetes manifests..."
-                        kubectl apply -f kubernetes/namespace.yml
-                        kubectl apply -f kubernetes/
-
                         echo "Updating frontend image..."
                         kubectl set image deployment/notes-frontend \
                           frontend=shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
