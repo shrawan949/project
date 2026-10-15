@@ -124,8 +124,8 @@ pipeline {
             steps {
                 withCredentials([
                     file(
-                        credentialsId: 'kubeconfig-admin',
-                        variable: 'KUBECONFIG_FILE'
+                           credentialsId: 'KUBECONFIG_FILE_NEW',
+                           variable: 'KUBECONFIG_FILE'
                     )
                 ]) {
                     sh '''
