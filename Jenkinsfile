@@ -3,21 +3,18 @@ pipeline {
 
     options {
         timestamps()
-        disableConcurrentBuilds()
-    }
-
-    tools {
-        nodejs 'NodeJS'
+        skipDefaultCheckout(true)
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     environment {
-        FRONTEND_IMAGE = 'shrawanambarte0101/notes-frontend'
         BACKEND_IMAGE  = 'shrawanambarte0101/notes-backend'
+        FRONTEND_IMAGE = 'shrawanambarte0101/notes-frontend'
         K8S_NAMESPACE  = 'notes-app'
+        SONAR_PROJECT_KEY = 'mini-notes-app'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -29,7 +26,8 @@ pipeline {
                     test -f application/backend/package.json
                     test -f application/backend/Dockerfile
                     test -d kubernetes
-                    echo "Source code and Kubernetes manifests found."
+
+                    echo "Source files validated."
                 '''
             }
         }
@@ -67,8 +65,8 @@ pipeline {
                     withSonarQubeEnv('SonarQube') {
                         sh """
                             set -eu
-                            "${scannerHome}/bin/sonar-scanner" \
-                              -Dsonar.projectKey=mini-notes-app \
+                            '${scannerHome}/bin/sonar-scanner' \
+                              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                               -Dsonar.projectName=Mini-Notes-App \
                               -Dsonar.sources=application/frontend/src,application/backend/src \
                               -Dsonar.exclusions=**/node_modules/**,**/dist/** \
@@ -85,12 +83,14 @@ pipeline {
                     set -eu
 
                     docker build \
-                      -t shrawanambarte0101:${BUILD_NUMBER} \
-                      application/frontend
+                      -t shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
+                      application/backend
 
                     docker build \
-                      -t shrawanambart0101:${BUILD_NUMBER} \
-                      application/backend
+                      -t shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
+                      application/frontend
+
+                    docker images
                 '''
             }
         }
@@ -99,21 +99,20 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DH_USER',
-                        passwordVariable: 'DH_PASSWORD'
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
                     sh '''
                         set -eu
-                        set +x
 
-                        echo "$DH_PASSWORD" | docker login \
-                          --username "$DH_USER" \
+                        echo "$DOCKER_PASSWORD" | docker login \
+                          -u "$DOCKER_USER" \
                           --password-stdin
 
-                        docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
-                        docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}
+                        docker push shrawanambarte0101/notes-backend:${BUILD_NUMBER}
+                        docker push shrawanambarte0101/notes-frontend:${BUILD_NUMBER}
 
                         docker logout
                     '''
@@ -133,26 +132,33 @@ pipeline {
                         set -eu
                         export KUBECONFIG="$KUBECONFIG_FILE"
 
+                        echo "Checking Kubernetes cluster..."
                         kubectl get nodes
 
+                        echo "Applying Kubernetes manifests..."
                         kubectl apply -f kubernetes/namespace.yml
                         kubectl apply -f kubernetes/
 
+                        echo "Updating frontend image..."
                         kubectl set image deployment/notes-frontend \
-                          frontend=${FRONTEND_IMAGE}:${BUILD_NUMBER} \
-                          -n ${K8S_NAMESPACE}
+                          frontend=shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
+                          -n notes-app
 
+                        echo "Updating backend image..."
                         kubectl set image deployment/notes-backend \
-                          backend=${BACKEND_IMAGE}:${BUILD_NUMBER} \
-                          -n ${K8S_NAMESPACE}
+                          backend=shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
+                          -n notes-app
 
+                        echo "Waiting for frontend rollout..."
                         kubectl rollout status deployment/notes-frontend \
-                          -n ${K8S_NAMESPACE} --timeout=180s
+                          -n notes-app --timeout=180s
 
+                        echo "Waiting for backend rollout..."
                         kubectl rollout status deployment/notes-backend \
-                          -n ${K8S_NAMESPACE} --timeout=180s
+                          -n notes-app --timeout=180s
 
-                        kubectl get pods,services -n ${K8S_NAMESPACE}
+                        echo "Final Kubernetes status:"
+                        kubectl get pods,services -n notes-app
                     '''
                 }
             }
@@ -173,3 +179,4 @@ pipeline {
         }
     }
 }
+
