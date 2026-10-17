@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -27,8 +26,10 @@ pipeline {
                     set -eu
 
                     test -f application/frontend/package.json
+                    test -f application/frontend/package-lock.json
                     test -f application/frontend/Dockerfile
                     test -f application/backend/package.json
+                    test -f application/backend/package-lock.json
                     test -f application/backend/Dockerfile
                     test -d kubernetes
 
@@ -65,12 +66,12 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    def scannerHome =  tool 'SonarQube-01'
+                    def scannerHome = tool 'SonarQube-01'
 
                     withSonarQubeEnv('SonarQube') {
                         withCredentials([
                             string(
-                                credentialsId: '',
+                                credentialsId: 'sonar-token',
                                 variable: 'SONAR_TOKEN'
                             )
                         ]) {
@@ -83,7 +84,7 @@ pipeline {
                                   -Dsonar.sources=application/frontend/src,application/backend/src \
                                   -Dsonar.exclusions=**/node_modules/**,**/dist/** \
                                   -Dsonar.sourceEncoding=UTF-8 \
-                                  -Dsonar.token=\$SONAR_TOKEN
+                                  -Dsonar.token=\\$SONAR_TOKEN
                             """
                         }
                     }
@@ -97,7 +98,7 @@ pipeline {
                     set -eu
 
                     docker build \
-                      -t shrawanambarte0101/notes-backend:${BUILD_NUMBER}\
+                      -t shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
                       application/backend
 
                     docker build \
@@ -131,7 +132,6 @@ pipeline {
                         docker push shrawanambarte0101/notes-backend:${BUILD_NUMBER}
                         docker push shrawanambarte0101/notes-frontend:${BUILD_NUMBER}
 
-
                         echo "Both images pushed successfully."
                     '''
                 }
@@ -154,10 +154,13 @@ pipeline {
                         kubectl get nodes
 
                         echo "Checking namespace..."
-                        kubectl get namespace "${K8S_NAMESPACE}"
+                        kubectl get namespace notes-app
 
                         echo "Checking deployments..."
                         kubectl get deployments -n notes-app
+
+                        echo "Checking current pods..."
+                        kubectl get pods -n notes-app
                     '''
                 }
             }
@@ -176,23 +179,25 @@ pipeline {
                         export KUBECONFIG="$KUBECONFIG_FILE"
 
                         echo "Updating backend image..."
-                         kubectl set image deployment/notes-frontend \
-                          frontend=shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
-                          -n notes-app
-
-                        echo "Updating frontend image..."
-                         kubectl set image deployment/notes-backend \
-                          backend=shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
-                          -n notes-app
-
-                        echo "Waiting for backend rollout..."
                         kubectl set image deployment/notes-backend \
                           backend=shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
                           -n notes-app
 
+                        echo "Updating frontend image..."
+                        kubectl set image deployment/notes-frontend \
+                          frontend=shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
+                          -n notes-app
+
+                        echo "Waiting for backend rollout..."
+                        kubectl rollout status deployment/notes-backend \
+                          -n notes-app --timeout=180s
+
                         echo "Waiting for frontend rollout..."
                         kubectl rollout status deployment/notes-frontend \
                           -n notes-app --timeout=180s
+
+                        echo "Final deployment status:"
+                        kubectl get deployments -n notes-app
 
                         echo "Final pod status:"
                         kubectl get pods -n notes-app -o wide
@@ -209,7 +214,7 @@ pipeline {
 
     post {
         success {
-            echo 'SUCCESS: Build, SonarQube analysis, Docker push and Kubernetes deployment completed.'
+            echo 'SUCCESS: Frontend build, backend validation, SonarQube analysis, Docker push and Kubernetes deployment completed.'
         }
 
         failure {
@@ -221,4 +226,3 @@ pipeline {
         }
     }
 }
-
