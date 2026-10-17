@@ -1,4 +1,3 @@
-```groovy
 pipeline {
     agent any
 
@@ -18,14 +17,12 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
 
                 sh '''
                     set -eu
-
                     test -f application/frontend/package.json
                     test -f application/frontend/package-lock.json
                     test -f application/frontend/Dockerfile
@@ -33,7 +30,6 @@ pipeline {
                     test -f application/backend/package-lock.json
                     test -f application/backend/Dockerfile
                     test -d kubernetes
-
                     echo "Source files validated successfully."
                 '''
             }
@@ -81,9 +77,8 @@ pipeline {
                             ]) {
                                 sh '''
                                     set -eu
-
                                     "$SONAR_SCANNER" \
-                                      -Dsonar.projectKey=mini-notes-app \
+                                      -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
                                       -Dsonar.projectName=Mini-Notes-App \
                                       -Dsonar.sources=application/frontend/src,application/backend/src \
                                       -Dsonar.exclusions=**/node_modules/**,**/dist/** \
@@ -110,7 +105,6 @@ pipeline {
                       -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
                       application/frontend
 
-                    echo "Docker images built successfully."
                     docker images
                 '''
             }
@@ -127,7 +121,6 @@ pipeline {
                 ]) {
                     sh '''
                         set -eu
-
                         trap 'docker logout >/dev/null 2>&1 || true' EXIT
 
                         echo "$DOCKER_PASSWORD" | docker login \
@@ -136,8 +129,6 @@ pipeline {
 
                         docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}
                         docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
-
-                        echo "Both images pushed successfully."
                     '''
                 }
             }
@@ -155,16 +146,9 @@ pipeline {
                         set -eu
                         export KUBECONFIG="$KUBECONFIG_FILE"
 
-                        echo "Checking Kubernetes nodes..."
                         kubectl get nodes
-
-                        echo "Checking namespace..."
                         kubectl get namespace "$K8S_NAMESPACE"
-
-                        echo "Checking deployments..."
                         kubectl get deployments -n "$K8S_NAMESPACE"
-
-                        echo "Checking current pods..."
                         kubectl get pods -n "$K8S_NAMESPACE"
                     '''
                 }
@@ -183,31 +167,22 @@ pipeline {
                         set -eu
                         export KUBECONFIG="$KUBECONFIG_FILE"
 
-                        echo "Updating backend image..."
                         kubectl set image deployment/notes-backend \
                           backend=${BACKEND_IMAGE}:${BUILD_NUMBER} \
                           -n "$K8S_NAMESPACE"
 
-                        echo "Updating frontend image..."
                         kubectl set image deployment/notes-frontend \
                           frontend=${FRONTEND_IMAGE}:${BUILD_NUMBER} \
                           -n "$K8S_NAMESPACE"
 
-                        echo "Waiting for backend rollout..."
                         kubectl rollout status deployment/notes-backend \
                           -n "$K8S_NAMESPACE" --timeout=180s
 
-                        echo "Waiting for frontend rollout..."
                         kubectl rollout status deployment/notes-frontend \
                           -n "$K8S_NAMESPACE" --timeout=180s
 
-                        echo "Final deployment status:"
                         kubectl get deployments -n "$K8S_NAMESPACE"
-
-                        echo "Final pod status:"
                         kubectl get pods -n "$K8S_NAMESPACE" -o wide
-
-                        echo "Kubernetes services:"
                         kubectl get services -n "$K8S_NAMESPACE"
 
                         echo "Deployment completed successfully."
@@ -219,7 +194,7 @@ pipeline {
 
     post {
         success {
-            echo 'SUCCESS: Frontend build, backend validation, SonarQube analysis, Docker push and Kubernetes deployment completed.'
+            echo 'SUCCESS: Build, SonarQube analysis, Docker push and Kubernetes deployment completed.'
         }
 
         failure {
@@ -231,4 +206,3 @@ pipeline {
         }
     }
 }
-```
