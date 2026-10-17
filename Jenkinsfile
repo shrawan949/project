@@ -14,7 +14,7 @@ pipeline {
         FRONTEND_IMAGE    = 'shrawanambarte0101/notes-frontend'
         K8S_NAMESPACE     = 'notes-app'
         SONAR_PROJECT_KEY = 'mini-notes-app'
-        PATH+NODEJS       = '/usr/bin:/usr/local/bin'
+        PATH              = "/usr/bin:/usr/local/bin:${env.PATH}"
     }
 
     stages {
