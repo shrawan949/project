@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -75,17 +76,21 @@ pipeline {
                                 variable: 'SONAR_TOKEN'
                             )
                         ]) {
-                            sh """
-                                set -eu
+                            withEnv([
+                                "SONAR_SCANNER=${scannerHome}/bin/sonar-scanner"
+                            ]) {
+                                sh '''
+                                    set -eu
 
-                                '${scannerHome}/bin/sonar-scanner' \
-                                  -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                  -Dsonar.projectName=Mini-Notes-App \
-                                  -Dsonar.sources=application/frontend/src,application/backend/src \
-                                  -Dsonar.exclusions=**/node_modules/**,**/dist/** \
-                                  -Dsonar.sourceEncoding=UTF-8 \
-                                  -Dsonar.token=\\$SONAR_TOKEN
-                            """
+                                    "$SONAR_SCANNER" \
+                                      -Dsonar.projectKey=mini-notes-app \
+                                      -Dsonar.projectName=Mini-Notes-App \
+                                      -Dsonar.sources=application/frontend/src,application/backend/src \
+                                      -Dsonar.exclusions=**/node_modules/**,**/dist/** \
+                                      -Dsonar.sourceEncoding=UTF-8 \
+                                      -Dsonar.token="$SONAR_TOKEN"
+                                '''
+                            }
                         }
                     }
                 }
@@ -98,11 +103,11 @@ pipeline {
                     set -eu
 
                     docker build \
-                      -t shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
+                      -t ${BACKEND_IMAGE}:${BUILD_NUMBER} \
                       application/backend
 
                     docker build \
-                      -t shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
+                      -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} \
                       application/frontend
 
                     echo "Docker images built successfully."
@@ -129,8 +134,8 @@ pipeline {
                           --username "$DOCKER_USER" \
                           --password-stdin
 
-                        docker push shrawanambarte0101/notes-backend:${BUILD_NUMBER}
-                        docker push shrawanambarte0101/notes-frontend:${BUILD_NUMBER}
+                        docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}
+                        docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}
 
                         echo "Both images pushed successfully."
                     '''
@@ -154,13 +159,13 @@ pipeline {
                         kubectl get nodes
 
                         echo "Checking namespace..."
-                        kubectl get namespace notes-app
+                        kubectl get namespace "$K8S_NAMESPACE"
 
                         echo "Checking deployments..."
-                        kubectl get deployments -n notes-app
+                        kubectl get deployments -n "$K8S_NAMESPACE"
 
                         echo "Checking current pods..."
-                        kubectl get pods -n notes-app
+                        kubectl get pods -n "$K8S_NAMESPACE"
                     '''
                 }
             }
@@ -180,30 +185,30 @@ pipeline {
 
                         echo "Updating backend image..."
                         kubectl set image deployment/notes-backend \
-                          backend=shrawanambarte0101/notes-backend:${BUILD_NUMBER} \
-                          -n notes-app
+                          backend=${BACKEND_IMAGE}:${BUILD_NUMBER} \
+                          -n "$K8S_NAMESPACE"
 
                         echo "Updating frontend image..."
                         kubectl set image deployment/notes-frontend \
-                          frontend=shrawanambarte0101/notes-frontend:${BUILD_NUMBER} \
-                          -n notes-app
+                          frontend=${FRONTEND_IMAGE}:${BUILD_NUMBER} \
+                          -n "$K8S_NAMESPACE"
 
                         echo "Waiting for backend rollout..."
                         kubectl rollout status deployment/notes-backend \
-                          -n notes-app --timeout=180s
+                          -n "$K8S_NAMESPACE" --timeout=180s
 
                         echo "Waiting for frontend rollout..."
                         kubectl rollout status deployment/notes-frontend \
-                          -n notes-app --timeout=180s
+                          -n "$K8S_NAMESPACE" --timeout=180s
 
                         echo "Final deployment status:"
-                        kubectl get deployments -n notes-app
+                        kubectl get deployments -n "$K8S_NAMESPACE"
 
                         echo "Final pod status:"
-                        kubectl get pods -n notes-app -o wide
+                        kubectl get pods -n "$K8S_NAMESPACE" -o wide
 
                         echo "Kubernetes services:"
-                        kubectl get services -n notes-app
+                        kubectl get services -n "$K8S_NAMESPACE"
 
                         echo "Deployment completed successfully."
                     '''
@@ -226,3 +231,4 @@ pipeline {
         }
     }
 }
+```
