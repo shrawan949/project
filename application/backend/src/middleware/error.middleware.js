@@ -7,13 +7,18 @@ export const errorHandler = (err, req, res, next) => {
     }
 
     const statusCode =
-        err instanceof ApiError && err.statusCode
+        err instanceof ApiError && Number.isInteger(err.statusCode)
             ? err.statusCode
             : 500;
 
+    console.error("Request error:", err);
+
     return res.status(statusCode).json({
         success: false,
-        message: err.message || "Internal server error",
+        message:
+            statusCode === 500 && !(err instanceof ApiError)
+                ? "Internal server error"
+                : err.message || "Internal server error",
         data: err.data ?? null,
         error: err.error ?? []
     });
