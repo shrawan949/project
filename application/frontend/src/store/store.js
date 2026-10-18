@@ -11,7 +11,7 @@ export const store = configureStore({
 })
 
 
-const socket = io(import.meta.env.VITE_API_Socket)
+const socket = io(import.meta.env.VITE_SOCKET_URL)
 
 socket.on('noteAdded', (note) => store.dispatch(noteAddedRealtime(note)));
 socket.on('noteUpdated', (note) => store.dispatch(noteUpdatedRealtime(note)));
