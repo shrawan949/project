@@ -1,4 +1,3 @@
-
 import { usermodel } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { apiResponse } from "../utils/apiResponse.js";
@@ -16,7 +15,6 @@ const generateAccessAndrefreshToken = async (userId) => {
         const refreshToken = user.generateRefreshToken();
 
         user.refreshToken = refreshToken;
-
         await user.save({ validateBeforeSave: false });
 
         return { accessToken, refreshToken };
@@ -37,7 +35,6 @@ const generateAccessAndrefreshToken = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body ?? {};
 
-    // Validate all required fields
     if (
         typeof username !== "string" ||
         !username.trim() ||
@@ -52,7 +49,6 @@ const registerUser = asyncHandler(async (req, res) => {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check whether the user already exists
     const existingUser = await usermodel.findOne({
         $or: [
             { username: normalizedUsername },
@@ -67,14 +63,12 @@ const registerUser = asyncHandler(async (req, res) => {
         );
     }
 
-    // Create the user
     const createdUser = await usermodel.create({
         username: normalizedUsername,
         email: normalizedEmail,
         password
     });
 
-    // Return user details without sensitive fields
     const safeUser = await usermodel
         .findById(createdUser._id)
         .select("-password -refreshToken");
@@ -87,11 +81,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     return res.status(201).json(
-        new apiResponse(
-            201,
-            safeUser,
-            "User registered successfully"
-        )
+        new apiResponse(201, safeUser, "User registered successfully")
     );
 });
 
@@ -132,7 +122,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const cookieAge = Number(process.env.COOKIE_AGE);
 
-    const options = {
+    const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
@@ -143,8 +133,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
         .json(
             new apiResponse(
                 200,
@@ -158,4 +148,3 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 export { registerUser, loginUser };
-

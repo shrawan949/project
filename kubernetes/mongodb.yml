@@ -5,7 +5,7 @@ metadata:
   name: mongodb
   namespace: notes-app
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: mongodb
@@ -41,4 +41,4 @@ spec:
       volumes:
         - name: mongodb-storage
           persistentVolumeClaim:
-            claimName: mongodb-pvc
+            claimName: mongodb-nfs-pvc
